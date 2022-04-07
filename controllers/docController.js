@@ -1,12 +1,29 @@
-
 const fs = require('fs')
 const multer = require('multer')
 const slugify = require('slugify')
 const { Document, Packer, Paragraph, TextRun } = require('docx')
 const docModel = require('../models/docModel')
 
+const fileName = (file) => {
+    if (file) {
+        return slugify(file, { lower: true })
+    }
+}
 
 const allowed = ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+
+const checkMimeType = (req, res, next) => {
+    if (allowed.includes(req.files.doc.mimetype)) {
+        next()
+    }
+    else {
+        res.status(400).json({
+            status: 'fail',
+            error: 'only word document (.doc and .docx) is allowed'
+        })
+    }
+}
+
 
 const multerStorage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -31,13 +48,71 @@ const upload = multer({
     fileFilter: multerFilter
 });
 
+
+const uploadDoc = async (req, res) => {
+    if (req.files) {
+        const name = fileName(req.files.doc.name)
+        console.log(name)
+        res.status(201).json({
+            status: 'success',
+            data: 'Uploaded successfully'
+        })
+    }
+    else {
+        res.status(400).json({
+            status: 'fail',
+            error: 'Add a document'
+        })
+    }
+}
+
+
+
+
+// const uploadDoc = async (req, res) => {
+//    return upload(req, res, (err) => {
+//         if (err instanceof multer.MulterError) {
+//             console.log("IA MA FROM INSTANCE", err)
+//             res.status(400).json({
+//                 status: 'fail',
+//                 error: err
+//             })
+//         }
+//         else if (err) {
+
+//             res.status(400).json({
+//                 status: 'fail',
+//                 error: 'only word document allowed (.doc or .docx)'
+//             })
+//         }
+//         else {
+//             if (req.files) {
+//                 const name = fileName(req.files.doc.name)
+//                 console.log(name)
+//                 res.status(201).json({
+//                     status: 'success',
+//                     data: 'Uploaded successfully'
+//                 })
+//             }
+//             else {
+//                 res.status(400).json({
+//                     status: 'fail',
+//                     error: 'Add a document'
+//                 })
+//             }
+
+//         }
+//     })
+
+// }
+
 const downloadDoc = async (req, res) => {
     const { docId } = req.params
     try {
         let doc = await docModel.findById(docId)
         if (doc) {
-            let data = fs.readFileSync(doc.name)
-            res.download(data)
+            let filename = doc.name
+            res.download(filename)
         }
         else {
             res.status(400).json({
@@ -49,15 +124,23 @@ const downloadDoc = async (req, res) => {
 
     } catch (error) {
         console.log(error)
-        res.status(500).json({
-            status: 'fail',
-            error: 'Something went wrong, please try again'
-        })
+        if (error.name === 'CastError') {
+            res.status(500).json({
+                status: 'fail',
+                error: 'Invalid document Id'
+            })
+        }
+        else {
+            res.status(500).json({
+                status: 'fail',
+                error: 'Something went wrong, please try again'
+            })
+        }
+
     }
 
 }
 
-const uploadDoc = upload.single('doc')
 
 const deleteDoc = async (req, res) => {
     const { docId } = req.params
@@ -131,10 +214,6 @@ const createDoc = async (req, res) => {
             })
         }
 
-        res.status(200).json({
-            status: 200,
-            message: 'Welcome to DOC'
-        })
     }
     else {
         res.status(400).json({
@@ -162,16 +241,62 @@ const readDoc = async (req, res) => {
 
     } catch (error) {
         console.log(error)
-        res.status(500).json({
-            status: 'fail',
-            error: 'Something went wrong, please try again'
-        })
+        if (error.name === 'CastError') {
+            res.status(500).json({
+                status: 'fail',
+                error: 'Invalid document Id'
+            })
+        }
+        else {
+            res.status(500).json({
+                status: 'fail',
+                error: 'Something went wrong, please try again'
+            })
+        }
+
     }
 
 }
 
 
-module.exports = { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc}
+const getDocs = async (req, res) => {
+    try {
+        let doc = await docModel.find()
+        if (doc.length > 0) {
+            let data = {
+                id: doc._id,
+                name: doc.name
+            }
+            // let data = fs.readFileSync(doc.name)
+            res.send(doc)
+        }
+        else {
+            res.status(200).json({
+                status: 'success',
+                data: 'no docs'
+            })
+        }
+
+    } catch (error) {
+        console.log(error)
+        if (error.name === 'CastError') {
+            res.status(500).json({
+                status: 'fail',
+                error: 'Invalid document Id'
+            })
+        }
+        else {
+            res.status(500).json({
+                status: 'fail',
+                error: 'Something went wrong, please try again'
+            })
+        }
+
+    }
+
+}
+
+module.exports = { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc, upload, checkMimeType, getDocs }
 
 
 /* 

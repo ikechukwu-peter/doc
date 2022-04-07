@@ -1,15 +1,17 @@
 
 const express = require('express')
-const { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc } = require('../controllers/docController')
+const passport = require('passport')
+const { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc, upload, checkMimeType, getDocs } = require('../controllers/docController')
 const router = express.Router()
 
+console.log(upload.single('doc'))
 
-
-router.post('/create/doc', createDoc)
-router.post('/upload/doc', uploadDoc)
-router.post('/download/:docId', downloadDoc)
-router.delete('/delete/:docId', deleteDoc)
-router.delete('/read/:docId', readDoc)
+router.post('/create', passport.authenticate('jwt', { session: false }), createDoc)
+router.post('/upload', passport.authenticate('jwt', { session: false }), checkMimeType, upload.single('doc'), uploadDoc)
+router.get('/download/:docId', passport.authenticate('jwt', { session: false }), downloadDoc)
+router.delete('/delete/:docId', passport.authenticate('jwt', { session: false }), deleteDoc)
+router.get('/read/:docId', passport.authenticate('jwt', { session: false }), readDoc)
+router.post('/docs', passport.authenticate('jwt', { session: false }), getDocs)
 
 
 module.exports = router;
