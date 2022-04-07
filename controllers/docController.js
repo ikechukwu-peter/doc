@@ -4,6 +4,7 @@ const slugify = require('slugify')
 const mammoth = require('mammoth')
 const { Document, Packer, Paragraph, TextRun } = require('docx')
 const docModel = require('../models/docModel')
+const cloudinary = require('../config/cloudinary')
 
 const fileName = (file) => {
     if (file) {
@@ -11,13 +12,20 @@ const fileName = (file) => {
     }
 }
 
+const uploader = async (path) => await cloudinary.uploads(path, 'Docs')
+
+
+//allowed mimetypes for documents
 const allowed = ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
 
 const uploadDoc = async (req, res) => {
     let file, filePath, uploadPath;
 
     if (!req.files || Object.keys(req.files).length === 0) {
-        return res.status(400).send('No files were uploaded.');
+        return res.status(400).json({
+            status: 'fail',
+            error: 'No files were uploaded.'
+        });
     }
     else if (!allowed.includes(req.files.doc.mimetype)) {
         return res.status(400).json({
@@ -27,84 +35,113 @@ const uploadDoc = async (req, res) => {
     }
     else {
 
-        // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
-        file = req.files.doc;
-        const filename = fileName(req.files.doc.name)
-        filePath = 'uploads/' + Date.now() + "-" + filename;
-        uploadPath = path.join(__dirname, "../" + filePath)
-        console.log(uploadPath)
+        try {
+            const filename = fileName(req.files.doc.name)
+            // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+            file = req.files.doc;
+            filePath = 'uploads/' + new Date().getTime() + "-" + filename;
+            uploadPath = path.join(__dirname, "../" + filePath)
+            console.log(uploadPath)
 
-        // Use the mv() method to place the file somewhere on your server
-        file.mv(uploadPath, function (err) {
-            if (err)
-                return res.status(500).json({
-                    status: 'fail',
-                    error: err
-                }
-                );
+            // Use the mv() method to place the file somewhere on your server
+            file.mv(uploadPath, function (err) {
+                if (err)
+                    return res.status(500).json({
+                        status: 'fail',
+                        error: err
+                    });
 
-            docModel.create({
-                name: filePath,
-                user: req.user.id
-            }).then(result => {
-                console.log(result)
-                res.status(201).json(
-                    {
-                        status: 'success',
-                        data: 'File uploaded!'
-                    }
-                );
+                const newPath = await uploader(filePath)
+                fs.unlinkSync(filePath)
 
-            }).catch(err => {
-                console.log(err)
-                fs.unlink(uploadPath)
-                res.status(500).json({
-                    error: 'Something went wrong'
+                docModel.create({
+                    name: newPath,
+                    user: req.user.id
+                }).then(result => {
+                    console.log(result)
+                    res.status(201).json(
+                        {
+                            status: 'success',
+                            message: 'upload successful',
+                            data: result.name
+                        }
+                    );
+
+                }).catch(err => {
+                    console.log(err)
+                    fs.unlinkSync(filePath)
+                    res.status(500).json({
+                        error: 'Something went wrong'
+                    })
                 })
-            })
 
-        });
+            });
+
+        } catch (error) {
+            console.log(error)
+            res.status(500).json({
+                status: 'fail',
+                error: 'Something went wrong'
+            })
+        }
+
     }
+
 }
 
-
-
-
 // const uploadDoc = async (req, res) => {
-//    return upload(req, res, (err) => {
-//         if (err instanceof multer.MulterError) {
-//             console.log("IA MA FROM INSTANCE", err)
-//             res.status(400).json({
-//                 status: 'fail',
-//                 error: err
-//             })
-//         }
-//         else if (err) {
 
-//             res.status(400).json({
-//                 status: 'fail',
-//                 error: 'only word document allowed (.doc or .docx)'
-//             })
-//         }
-//         else {
-//             if (req.files) {
-//                 const name = fileName(req.files.doc.name)
-//                 console.log(name)
-//                 res.status(201).json({
-//                     status: 'success',
-//                     data: 'Uploaded successfully'
-//                 })
-//             }
-//             else {
-//                 res.status(400).json({
+//     let file, filePath, uploadPath;
+
+//     if (!req.files || Object.keys(req.files).length === 0) {
+//         return res.status(400).send('No files were uploaded.');
+//     }
+//     else if (!allowed.includes(req.files.doc.mimetype)) {
+//         return res.status(400).json({
+//             status: 'fail',
+//             error: 'only word documents (.doc, .docx) is allowed'
+//         })
+//     }
+//     else {
+
+//         // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+//         file = req.files.doc;
+//         const filename = fileName(req.files.doc.name)
+//         filePath = 'uploads/' + Date.now() + "-" + filename;
+//         uploadPath = path.join(__dirname, "../" + filePath)
+//         console.log(uploadPath)
+
+//         // Use the mv() method to place the file somewhere on your server
+//         file.mv(uploadPath, function (err) {
+//             if (err)
+//                 return res.status(500).json({
 //                     status: 'fail',
-//                     error: 'Add a document'
+//                     error: err
+//                 }
+//                 );
+
+//             docModel.create({
+//                 name: filePath,
+//                 user: req.user.id
+//             }).then(result => {
+//                 console.log(result)
+//                 res.status(201).json(
+//                     {
+//                         status: 'success',
+//                         data: 'File uploaded!'
+//                     }
+//                 );
+
+//             }).catch(err => {
+//                 console.log(err)
+//                 fs.unlink(uploadPath)
+//                 res.status(500).json({
+//                     error: 'Something went wrong'
 //                 })
-//             }
+//             })
 
-//         }
-//     })
-
+//         });
+//     }
 // }
 
 const downloadDoc = async (req, res) => {
@@ -148,7 +185,6 @@ const deleteDoc = async (req, res) => {
     try {
         let doc = await docModel.findOne({ id: docId, user: req.user.id })
         if (doc) {
-            fs.unlinkSync(doc.name)
             await doc.remove()
             res.status(204).send()
         }
@@ -171,7 +207,8 @@ const deleteDoc = async (req, res) => {
 
 const createDoc = async (req, res) => {
     const { name, document } = req.body;
-    if (name) {
+
+    if (name && document) {
 
         const docName = `uploads/${new Date().getTime()}-${name}.doc`
 
@@ -190,35 +227,44 @@ const createDoc = async (req, res) => {
         // Used to export the file into a .docx file
         Packer.toBuffer(doc).then((buffer) => {
             fs.writeFileSync(docName, buffer);
-        });
+            uploader(docName).then(url => {
+                fs.unlinkSync(docName)
 
-        try {
-            let newDoc = await docModel.create({ name: docName, user: req.user.id })
-            if (newDoc) {
-                res.status(201).json({
-                    status: 'success',
-                    data: newDoc.name
+                docModel.create({
+                    name: url,
+                    user: req.user.id
+                }).then(result => {
+                    console.log(result)
+                    res.status(201).json(
+                        {
+                            status: 'success',
+                            message: 'upload successful',
+                            data: result.name
+                        }
+                    );
+
+                }).catch(err => {
+                    console.log(err)
+                    fs.unlinkSync(filePath)
+                    res.status(500).json({
+                        error: 'Something went wrong'
+                    })
                 })
-            }
-            else {
+            }).catch(err => {
+                console.log(err)
+
                 res.status(500).json({
                     status: 'fail',
-                    error: 'Error while creating a new doc'
+                    error: 'Something went wrong'
                 })
-            }
-
-        } catch (error) {
-            console.log(error)
-            res.status(500).json({
-                status: 'fail',
-                error: 'Something went wrong, please try again'
             })
-        }
+
+        });
 
     }
     else {
         res.status(400).json({
-            status: 400,
+            status: 'fail',
             error: 'provide name'
         })
     }
@@ -277,8 +323,10 @@ const getDocs = async (req, res) => {
                 id: doc._id,
                 name: doc.name
             }
-            // let data = fs.readFileSync(doc.name)
-            res.send(doc)
+            res.status(200).json({
+                status: 'success',
+                data
+            })
         }
         else {
             res.status(200).json({
@@ -341,7 +389,12 @@ const getDoc = async (req, res) => {
 
 }
 
-module.exports = { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc, getDocs, getDoc }
+module.exports = {
+    createDoc, uploadDoc,
+    deleteDoc, downloadDoc,
+    readDoc, getDocs,
+    getDoc
+}
 
 
 /* 

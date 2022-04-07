@@ -24,27 +24,6 @@ app.use(fileUpload({
     }
 }))
 
-const allowed = ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
-
-const checkMimeType = (req, res, next) => {
-    if (allowed.includes(req.files.doc.mimetype)) {
-        next()
-    }
-    else {
-        res.status(400).json({
-            status: 'fail',
-            error: 'only word document (.doc and .docx) is allowed'
-        })
-    }
-}
-
-
-
-
-
-
-
-
 app.use("/user/", userRoutes)
 app.use("/doc/", docRoutes)
 
