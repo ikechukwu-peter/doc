@@ -1,6 +1,7 @@
 const fs = require('fs')
 const multer = require('multer')
 const slugify = require('slugify')
+const mammoth = require('mammoth')
 const { Document, Packer, Paragraph, TextRun } = require('docx')
 const docModel = require('../models/docModel')
 
@@ -109,7 +110,7 @@ const uploadDoc = async (req, res) => {
 const downloadDoc = async (req, res) => {
     const { docId } = req.params
     try {
-        let doc = await docModel.findById(docId)
+        let doc = await docModel.findOne({ id: docId, user: req.user.id })
         if (doc) {
             let filename = doc.name
             res.download(filename)
@@ -145,7 +146,7 @@ const downloadDoc = async (req, res) => {
 const deleteDoc = async (req, res) => {
     const { docId } = req.params
     try {
-        let doc = await docModel.findById(docId)
+        let doc = await docModel.findOne({ id: docId, user: req.user.id })
         if (doc) {
             fs.unlinkSync(doc.name)
             await doc.remove()
@@ -192,7 +193,7 @@ const createDoc = async (req, res) => {
         });
 
         try {
-            let newDoc = await docModel.create({ name: docName })
+            let newDoc = await docModel.create({ name: docName, user: req.user.id })
             if (newDoc) {
                 res.status(201).json({
                     status: 'success',
@@ -227,10 +228,19 @@ const createDoc = async (req, res) => {
 const readDoc = async (req, res) => {
     const { docId } = req.params
     try {
-        let doc = await docModel.findById(docId)
+        let doc = await docModel.findOne({ id: docId, user: req.user.id })
         if (doc) {
-            let data = fs.readFileSync(doc.name)
-            res.send(data)
+            mammoth.convertToHtml({ path: `${doc.name}` })
+                .then(function (result) {
+                    const html = result.value; // The generated HTML
+                    const messages = result.messages; // Any messages, such as warnings during conversion
+                    console.log(messages)
+                    res.status(200).json({
+                        status: 'success',
+                        data: html
+                    })
+                })
+                .done();
         }
         else {
             res.status(400).json({
@@ -261,7 +271,7 @@ const readDoc = async (req, res) => {
 
 const getDocs = async (req, res) => {
     try {
-        let doc = await docModel.find()
+        let doc = await docModel.find({ where: { user: req.user.id } })
         if (doc.length > 0) {
             let data = {
                 id: doc._id,
@@ -269,6 +279,41 @@ const getDocs = async (req, res) => {
             }
             // let data = fs.readFileSync(doc.name)
             res.send(doc)
+        }
+        else {
+            res.status(200).json({
+                status: 'success',
+                data: 'no docs'
+            })
+        }
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({
+            status: 'fail',
+            error: 'Something went wrong, please try again'
+        })
+
+
+    }
+
+}
+
+
+const getDoc = async (req, res) => {
+    const { id } = req.user
+    const { docId } = req.params
+    try {
+        let doc = await docModel.findOne({ id: docId, user: id })
+        if (doc) {
+            let data = {
+                id: doc._id,
+                name: doc.name
+            }
+            res.status(200).json({
+                status: 'success',
+                data
+            })
         }
         else {
             res.status(200).json({
@@ -296,7 +341,7 @@ const getDocs = async (req, res) => {
 
 }
 
-module.exports = { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc, upload, checkMimeType, getDocs }
+module.exports = { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc, checkMimeType, getDocs, getDoc }
 
 
 /* 

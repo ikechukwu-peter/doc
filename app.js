@@ -61,9 +61,15 @@ const upload = multer({
 });
 
 
-app.post('/upload/doc', upload.single('doc') ,async(req, res) => {
-res.send('ok')
-})
+var uploads = multer({ dest: './uploads/' });
+
+app.post('/single', uploads.single('doc'), (req, res) => {
+    try {
+        res.send(req.file);
+    } catch (err) {
+        res.send(400);
+    }
+});
 
 app.use("/user/", userRoutes)
 app.use("/doc/", docRoutes)
