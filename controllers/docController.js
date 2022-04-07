@@ -51,28 +51,36 @@ const uploadDoc = async (req, res) => {
                         error: err
                     });
 
-                const newPath = await uploader(filePath)
-                fs.unlinkSync(filePath)
+                uploader(filePath).then(newPath => {
 
-                docModel.create({
-                    name: newPath,
-                    user: req.user.id
-                }).then(result => {
-                    console.log(result)
-                    res.status(201).json(
-                        {
-                            status: 'success',
-                            message: 'upload successful',
-                            data: result.name
-                        }
-                    );
+                    docModel.create({
+                        name: newPath.url,
+                        user: req.user.id
+                    }).then(result => {
+                        console.log(result)
+                        res.status(201).json(
+                            {
+                                status: 'success',
+                                message: 'upload successful',
+                                data: result.name
+                            }
+                        );
 
-                }).catch(err => {
-                    console.log(err)
-                    fs.unlinkSync(filePath)
-                    res.status(500).json({
-                        error: 'Something went wrong'
+                    }).catch(err => {
+                        console.log(err)
+                        fs.unlinkSync(filePath)
+                        res.status(500).json({
+                            error: 'Something went wrong'
+                        })
+                    }).catch(err => {
+                        console.log(err)
+
+                        res.status(500).json({
+                            status: 'fail',
+                            error: 'Something went wrong'
+                        })
                     })
+
                 })
 
             });
@@ -227,11 +235,11 @@ const createDoc = async (req, res) => {
         // Used to export the file into a .docx file
         Packer.toBuffer(doc).then((buffer) => {
             fs.writeFileSync(docName, buffer);
-            uploader(docName).then(url => {
+            uploader(docName).then(newPath => {
                 fs.unlinkSync(docName)
 
                 docModel.create({
-                    name: url,
+                    name: newPath.url,
                     user: req.user.id
                 }).then(result => {
                     console.log(result)
