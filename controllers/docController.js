@@ -325,15 +325,13 @@ const readDoc = async (req, res) => {
 
 const getDocs = async (req, res) => {
     try {
-        let doc = await docModel.find({ where: { user: req.user.id } })
-        if (doc.length > 0) {
-            let data = {
-                id: doc._id,
-                name: doc.name
-            }
+        let docs = await docModel.find().where({ user: req.user.id })
+        console.log(docs)
+        if (docs.length > 0) {
+           
             res.status(200).json({
                 status: 'success',
-                data
+                data: docs                   
             })
         }
         else {
