@@ -1,5 +1,5 @@
 const fs = require('fs')
-const multer = require('multer')
+const path = require('path')
 const slugify = require('slugify')
 const mammoth = require('mammoth')
 const { Document, Packer, Paragraph, TextRun } = require('docx')
@@ -13,57 +13,57 @@ const fileName = (file) => {
 
 const allowed = ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
 
-const checkMimeType = (req, res, next) => {
-    if (allowed.includes(req.files.doc.mimetype)) {
-        next()
-    }
-    else {
-        res.status(400).json({
-            status: 'fail',
-            error: 'only word document (.doc and .docx) is allowed'
-        })
-    }
-}
-
-
-const multerStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        const name = slugify(file.originalname, { lower: true })
-        cb(null, `${new Date().getTime()}-${name}`)
-    }
-});
-
-const multerFilter = (req, file, cb) => {
-    if (allowed.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        cb(new Error('Only word doc or docx allowed!'), false);
-    }
-};
-
-const upload = multer({
-    storage: multerStorage,
-    fileFilter: multerFilter
-});
-
-
 const uploadDoc = async (req, res) => {
-    if (req.files) {
-        const name = fileName(req.files.doc.name)
-        console.log(name)
-        res.status(201).json({
-            status: 'success',
-            data: 'Uploaded successfully'
+    let file, filePath, uploadPath;
+
+    if (!req.files || Object.keys(req.files).length === 0) {
+        return res.status(400).send('No files were uploaded.');
+    }
+    else if (!allowed.includes(req.files.doc.mimetype)) {
+        return res.status(400).json({
+            status: 'fail',
+            error: 'only word documents (.doc, .docx) is allowed'
         })
     }
     else {
-        res.status(400).json({
-            status: 'fail',
-            error: 'Add a document'
-        })
+
+        // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+        file = req.files.doc;
+        const filename = fileName(req.files.doc.name)
+        filePath = 'uploads/' + Date.now() + "-" + filename;
+        uploadPath = path.join(__dirname, "../" + filePath)
+        console.log(uploadPath)
+
+        // Use the mv() method to place the file somewhere on your server
+        file.mv(uploadPath, function (err) {
+            if (err)
+                return res.status(500).json({
+                    status: 'fail',
+                    error: err
+                }
+                );
+
+            docModel.create({
+                name: filePath,
+                user: req.user.id
+            }).then(result => {
+                console.log(result)
+                res.status(201).json(
+                    {
+                        status: 'success',
+                        data: 'File uploaded!'
+                    }
+                );
+
+            }).catch(err => {
+                console.log(err)
+                fs.unlink(uploadPath)
+                res.status(500).json({
+                    error: 'Something went wrong'
+                })
+            })
+
+        });
     }
 }
 
@@ -341,7 +341,7 @@ const getDoc = async (req, res) => {
 
 }
 
-module.exports = { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc, checkMimeType, getDocs, getDoc }
+module.exports = { createDoc, uploadDoc, deleteDoc, downloadDoc, readDoc, getDocs, getDoc }
 
 
 /* 
