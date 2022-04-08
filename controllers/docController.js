@@ -7,8 +7,9 @@ const docModel = require('../models/docModel')
 const cloudinary = require('../config/cloudinary')
 
 const fileName = (file) => {
+    let doc = file.split('.')[0] + '.docx';
     if (file) {
-        return slugify(file, { lower: true })
+        return slugify(doc, { lower: true })
     }
 }
 
