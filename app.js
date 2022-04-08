@@ -1,5 +1,7 @@
 const express = require('express')
 const mongoose = require('mongoose')
+const cluster = require('cluster')
+const cpus = require('os').cpus;
 require('dotenv').config()
 const passport = require('passport')
 const fileUpload = require('express-fileupload')
@@ -27,21 +29,73 @@ app.use(fileUpload({
 app.use("/user/", userRoutes)
 app.use("/doc/", docRoutes)
 
-const PORT = process.env.PORT || 5000;
-const dbInit = async () => {
-    try {
-        //connect to mongodb here
-        mongoose.connect(process.env.DATABASE, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true
-        })
-        console.log('Connected successfully to database')
+const numWorkers = cpus().length;
 
-    } catch (error) {
-        console.log('Failed to connect to database', error)
+if (cluster.isPrimary) {
+
+    console.log('Master cluster setting up ' + numWorkers + ' workers...');
+
+    for (let i = 0; i < numWorkers; i++) {
+        cluster.fork();
     }
-}
-//connect to Database
-dbInit()
 
-app.listen(5000, () => { console.info('Server started running on port ' + PORT) })
+    cluster.on('online', function (worker) {
+        console.log('Worker ' + worker.process.pid + ' is online');
+    });
+
+    cluster.on('exit', function (worker, code, signal) {
+        console.log('Worker ' + worker.process.pid + ' died with code: ' + code + ', and signal: ' + signal);
+        console.log('Starting a new worker');
+        cluster.fork();
+    });
+} else {
+
+    //Handle uncaughtExceptions
+    process.on("uncaughtException", (err) => {
+        console.log("UNCAUGHT EXCEPTION! Server shutting down...");
+        console.log(err.name, err.message, err.stack);
+        process.exit(1);
+    });
+
+
+
+    const PORT = process.env.PORT || 5000;
+    const dbInit = async () => {
+        try {
+            //connect to mongodb here
+            mongoose.connect(process.env.DATABASE, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true
+            })
+            console.log('Connected successfully to database')
+
+        } catch (error) {
+            console.log('Failed to connect to database', error)
+        }
+    }
+    //connect to Database
+    dbInit()
+
+    app.listen(5000, () => { console.info('Server started running on port ' + PORT) })
+
+
+    process.on('unhandledRejection', err => {
+        console.log('UNHANDLED REJECTION! 💥 Shutting down...');
+        console.log(err.name, err.message, err.stack);
+        server.close(() => {
+            process.exit(1);
+        });
+    });
+
+    //For heroku
+    process.on('SIGTERM', () => {
+        console.log('SIGTERM RECEIVED. Shuttig down gracefully!!');
+
+        server.close(() => {
+            console.log('Process terminated!');
+        })
+
+    })
+
+
+}
