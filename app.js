@@ -106,14 +106,4 @@ if (cluster.isPrimary) {
 
     })
 
-    process.on('SIGKILL', () => {
-        console.log('SIGKILL RECEIVED. Shuttig down gracefully!!');
-
-        server.close(() => {
-            console.log('Process terminated!');
-        })
-
-    })
-
-
 }
