@@ -351,7 +351,7 @@ const getDocs = async (req, res) => {
     try {
         let docs = await docModel.find().where({ user: req.user.id })
         console.log(docs)
-        if (docs.length > 0) {
+        if (docs) {
 
             res.status(200).json({
                 status: 'success',
@@ -359,9 +359,9 @@ const getDocs = async (req, res) => {
             })
         }
         else {
-            res.status(200).json({
-                status: 'success',
-                data: 'no docs'
+            res.status(400).json({
+                status: 'fail',
+                error: "Error while processing your request"
             })
         }
 
