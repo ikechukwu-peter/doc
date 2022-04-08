@@ -68,7 +68,7 @@ if (cluster.isPrimary) {
 
 
 
-    const PORT = process.env.PORT || 5000;
+    const port = process.env.PORT || 5000;
     const dbInit = async () => {
         try {
             //connect to mongodb here
@@ -85,7 +85,7 @@ if (cluster.isPrimary) {
     //connect to Database
     dbInit()
 
-    app.listen(5000, () => { console.info('Server started running on port ' + PORT) })
+    app.listen(5000, () => { console.info('Server started running on port ' + port) })
 
 
     process.on('unhandledRejection', err => {
@@ -99,6 +99,15 @@ if (cluster.isPrimary) {
     //For heroku
     process.on('SIGTERM', () => {
         console.log('SIGTERM RECEIVED. Shuttig down gracefully!!');
+
+        server.close(() => {
+            console.log('Process terminated!');
+        })
+
+    })
+
+    process.on('SIGKILL', () => {
+        console.log('SIGKILL RECEIVED. Shuttig down gracefully!!');
 
         server.close(() => {
             console.log('Process terminated!');
