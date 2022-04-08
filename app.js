@@ -5,6 +5,7 @@ const cpus = require('os').cpus;
 require('dotenv').config()
 const passport = require('passport')
 const fileUpload = require('express-fileupload')
+const cors = require('cors')
 const authenticate = require('./config/passport')
 const userRoutes = require('./routes/userRoute')
 const docRoutes = require('./routes/docRoute')
@@ -14,6 +15,8 @@ const app = express()
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 
+//CORS
+app.use(cors())
 //initialize passport
 app.use(passport.initialize())
 
