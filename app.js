@@ -85,7 +85,7 @@ if (cluster.isPrimary) {
     //connect to Database
     dbInit()
 
-    app.listen(5000, () => { console.info('Server started running on port ' + port) })
+    app.listen(port, () => { console.info('Server started running on port ' + port) })
 
 
     process.on('unhandledRejection', err => {
