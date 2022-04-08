@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const slugify = require('slugify')
-const mammoth = require('mammoth')
+//const mammoth = require('mammoth')
 const { Document, Packer, Paragraph, TextRun } = require('docx')
 const docModel = require('../models/docModel')
 const cloudinary = require('../config/cloudinary')
@@ -219,7 +219,7 @@ const createDoc = async (req, res) => {
 
     if (name && document) {
 
-        const docName = `uploads/${new Date().getTime()}-${name}.doc`
+        const docName = `uploads/${new Date().getTime()}-${name}.docx`
 
         const doc = new Document({
             sections: [{
