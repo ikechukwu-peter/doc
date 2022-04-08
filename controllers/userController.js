@@ -74,6 +74,12 @@ const login = async (req, res) => {
                         data
                     })
                 }
+                else {
+                    res.status(400).json({
+                        status: 'fail',
+                        error: 'Invalid username or password'
+                    }) 
+                }
             }
             else {
                 res.status(404).json({

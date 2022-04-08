@@ -284,17 +284,21 @@ const readDoc = async (req, res) => {
     try {
         let doc = await docModel.findOne({ id: docId, user: req.user.id })
         if (doc) {
-            mammoth.convertToHtml({ path: `${doc.name}` })
-                .then(function (result) {
-                    const html = result.value; // The generated HTML
-                    const messages = result.messages; // Any messages, such as warnings during conversion
-                    console.log(messages)
-                    res.status(200).json({
-                        status: 'success',
-                        data: html
-                    })
-                })
-                .done();
+            // mammoth.convertToHtml({ path: `${doc.name}` })
+            //     .then(function (result) {
+            //         const html = result.value; // The generated HTML
+            //         const messages = result.messages; // Any messages, such as warnings during conversion
+            //         console.log(messages)
+            //         res.status(200).json({
+            //             status: 'success',
+            //             data: html
+            //         })
+            //     })
+            //     .done();
+            res.status(200).json({
+                status: 'success',
+                data: doc.name
+            })
         }
         else {
             res.status(400).json({
@@ -331,7 +335,7 @@ const getDocs = async (req, res) => {
            
             res.status(200).json({
                 status: 'success',
-                data: docs                   
+                data: docs.map(doc => doc.name)                   
             })
         }
         else {
