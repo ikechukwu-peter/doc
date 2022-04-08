@@ -335,7 +335,7 @@ const getDocs = async (req, res) => {
            
             res.status(200).json({
                 status: 'success',
-                data: docs.map(doc => doc.name)                   
+                data: docs                   
             })
         }
         else {
