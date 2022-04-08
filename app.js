@@ -29,6 +29,15 @@ app.use(fileUpload({
 app.use("/user/", userRoutes)
 app.use("/doc/", docRoutes)
 
+//Handle all undefined route hit by the client
+app.all("*", (req, res, next) => {
+    res.status(404).json({
+        status: 'fail',
+        error: `Can't find ${req.originalUrl} on this server!`,
+    });
+});
+
+
 const numWorkers = cpus().length;
 
 if (cluster.isPrimary) {
