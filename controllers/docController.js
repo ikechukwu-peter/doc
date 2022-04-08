@@ -38,54 +38,72 @@ const uploadDoc = async (req, res) => {
 
         try {
             const filename = fileName(req.files.doc.name)
-            // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
-            file = req.files.doc;
-            filePath = 'uploads/' + new Date().getTime() + "-" + filename;
-            uploadPath = path.join(__dirname, "../" + filePath)
-            console.log(uploadPath)
 
-            // Use the mv() method to place the file somewhere on your server
-            file.mv(uploadPath, function (err) {
-                if (err)
-                    return res.status(500).json({
-                        status: 'fail',
-                        error: err
-                    });
+            const name = filename.split('.')[0]
 
-                uploader(filePath).then(newPath => {
+            const docExist = await docModel.findOne({ name })
 
-                    docModel.create({
-                        name: newPath.url,
-                        user: req.user.id
-                    }).then(result => {
-                        console.log(result)
-                        res.status(201).json(
-                            {
-                                status: 'success',
-                                message: 'upload successful',
-                                data: result.name
-                            }
-                        );
+            if (docExist) {
+                return res.status(400).json({
+                    status: 'fail',
+                    error: `You already have a file with this name ${name}`
+                })
+            }
+            else {
 
-                    }).catch(err => {
-                        console.log(err)
-                        fs.unlinkSync(filePath)
-                        res.status(500).json({
-                            error: 'Something went wrong'
-                        })
-                    }).catch(err => {
-                        console.log(err)
+                // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+                file = req.files.doc;
+                filePath = 'uploads/' + new Date().getTime() + "-" + filename;
+                uploadPath = path.join(__dirname, "../" + filePath)
+                console.log(uploadPath)
 
-                        res.status(500).json({
+                // Use the mv() method to place the file somewhere on your server
+                file.mv(uploadPath, function (err) {
+                    if (err)
+                        return res.status(500).json({
                             status: 'fail',
-                            error: 'Something went wrong'
+                            error: err
+                        });
+
+                    uploader(filePath).then(newPath => {
+
+                        docModel.create({
+                            name,
+                            url: newPath.url,
+                            user: req.user.id
+                        }).then(result => {
+                            console.log(result)
+                            res.status(201).json(
+                                {
+                                    status: 'success',
+                                    message: 'upload successful',
+                                    data: {
+                                        name: result.name,
+                                        url: result.url
+                                    }
+                                }
+                            );
+
+                        }).catch(err => {
+                            console.log(err)
+                            fs.unlinkSync(filePath)
+                            res.status(500).json({
+                                error: 'Something went wrong'
+                            })
+                        }).catch(err => {
+                            console.log(err)
+
+                            res.status(500).json({
+                                status: 'fail',
+                                error: 'Something went wrong'
+                            })
                         })
+
                     })
 
-                })
+                });
 
-            });
-
+            }
         } catch (error) {
             console.log(error)
             res.status(500).json({
@@ -158,8 +176,8 @@ const downloadDoc = async (req, res) => {
     try {
         let doc = await docModel.findOne({ id: docId, user: req.user.id })
         if (doc) {
-            let filename = doc.name
-            res.download(filename)
+            let file = doc.url
+            res.download(file)
         }
         else {
             res.status(400).json({
@@ -240,7 +258,8 @@ const createDoc = async (req, res) => {
                 fs.unlinkSync(docName)
 
                 docModel.create({
-                    name: newPath.url,
+                    name,
+                    url: newPath.url,
                     user: req.user.id
                 }).then(result => {
                     console.log(result)
@@ -298,7 +317,7 @@ const readDoc = async (req, res) => {
             //     .done();
             res.status(200).json({
                 status: 'success',
-                data: doc.name
+                data: doc
             })
         }
         else {
@@ -333,10 +352,10 @@ const getDocs = async (req, res) => {
         let docs = await docModel.find().where({ user: req.user.id })
         console.log(docs)
         if (docs.length > 0) {
-           
+
             res.status(200).json({
                 status: 'success',
-                data: docs                   
+                data: docs
             })
         }
         else {
@@ -367,7 +386,8 @@ const getDoc = async (req, res) => {
         if (doc) {
             let data = {
                 id: doc._id,
-                name: doc.name
+                name: doc.name,
+                url: doc.url
             }
             res.status(200).json({
                 status: 'success',
