@@ -21,7 +21,7 @@ const allowed = ["application/msword", "application/vnd.openxmlformats-officedoc
 
 const uploadDoc = async (req, res) => {
     let file, filePath, uploadPath;
-    console.log(req.files) 
+    console.log(req.files)
 
     if (!req.files || Object.keys(req.files).length === 0) {
         return res.status(400).json({
@@ -210,10 +210,11 @@ const downloadDoc = async (req, res) => {
 const deleteDoc = async (req, res) => {
     const { docId } = req.params
     try {
-        let doc = await docModel.findOne({ id: docId, user: req.user.id })
+        let doc = await docModel.findOneAndDelete({ id: docId, user: req.user.id })
         if (doc) {
-            await doc.remove()
-            res.status(204).send()
+            res.status(204).json({
+                status: 'success',
+            })
         }
         else {
             res.status(400).json({
