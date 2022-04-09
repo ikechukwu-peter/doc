@@ -41,7 +41,7 @@ const uploadDoc = async (req, res) => {
 
             const name = filename.split('.')[0]
 
-            const docExist = await docModel.findOne({ name })
+            const docExist = await docModel.findOne({ name: slugify(name, { lower: true }), user: req.user.id })
 
             if (docExist) {
                 return res.status(400).json({
@@ -68,7 +68,7 @@ const uploadDoc = async (req, res) => {
                     uploader(filePath).then(newPath => {
 
                         docModel.create({
-                            name,
+                            name: slugify(name, { lower: true }),
                             url: newPath.url,
                             user: req.user.id
                         }).then(result => {
@@ -76,7 +76,6 @@ const uploadDoc = async (req, res) => {
                             res.status(201).json(
                                 {
                                     status: 'success',
-                                    message: 'upload successful',
                                     data: {
                                         name: result.name,
                                         url: result.url
@@ -237,57 +236,73 @@ const createDoc = async (req, res) => {
 
     if (name && document) {
 
-        const docName = `uploads/${new Date().getTime()}-${name}.docx`
-
-        const doc = new Document({
-            sections: [{
-                properties: {},
-                children: [
-                    new Paragraph({
-                        children: [
-                            new TextRun(document),
-                        ],
-                    }),
-                ],
-            }],
-        });
-        // Used to export the file into a .docx file
-        Packer.toBuffer(doc).then((buffer) => {
-            fs.writeFileSync(docName, buffer);
-            uploader(docName).then(newPath => {
-                fs.unlinkSync(docName)
-
-                docModel.create({
-                    name,
-                    url: newPath.url,
-                    user: req.user.id
-                }).then(result => {
-                    console.log(result)
-                    res.status(201).json(
-                        {
-                            status: 'success',
-                            message: 'upload successful',
-                            data: result.name
-                        }
-                    );
-
-                }).catch(err => {
-                    console.log(err)
-                    fs.unlinkSync(filePath)
-                    res.status(500).json({
-                        error: 'Something went wrong'
-                    })
-                })
-            }).catch(err => {
-                console.log(err)
-
-                res.status(500).json({
+        docModel.findOne({ name: slugify(name, { lower: true }) }).then(doc => {
+            if (doc) {
+                res.status(400).json({
                     status: 'fail',
-                    error: 'Something went wrong'
+                    error: 'You have a document with that name already'
                 })
-            })
+            }
+            else {
+                const docName = `uploads/${new Date().getTime()}-${name}.docx`
 
-        });
+                const doc = new Document({
+                    sections: [{
+                        properties: {},
+                        children: [
+                            new Paragraph({
+                                children: [
+                                    new TextRun(document),
+                                ],
+                            }),
+                        ],
+                    }],
+                });
+                // Used to export the file into a .docx file
+                Packer.toBuffer(doc).then((buffer) => {
+                    fs.writeFileSync(docName, buffer);
+                    uploader(docName).then(newPath => {
+                        fs.unlinkSync(docName)
+
+                        docModel.create({
+                            name,
+                            url: newPath.url,
+                            user: req.user.id
+                        }).then(result => {
+                            console.log(result)
+                            res.status(201).json(
+                                {
+                                    status: 'success',
+                                    data: result.name
+                                }
+                            );
+
+                        }).catch(err => {
+                            console.log(err)
+                            fs.unlinkSync(filePath)
+                            res.status(500).json({
+                                error: 'Something went wrong'
+                            })
+                        })
+                    }).catch(err => {
+                        console.log(err)
+
+                        res.status(500).json({
+                            status: 'fail',
+                            error: 'Something went wrong'
+                        })
+                    })
+
+                });
+            }
+        }).catch(err => {
+            console.log(err)
+            res.status(500).json({
+                status: 'fail',
+                error: 'Something went wrong'
+            })
+        })
+
 
     }
     else {
