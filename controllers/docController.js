@@ -21,6 +21,7 @@ const allowed = ["application/msword", "application/vnd.openxmlformats-officedoc
 
 const uploadDoc = async (req, res) => {
     let file, filePath, uploadPath;
+    console.log(req.files) 
 
     if (!req.files || Object.keys(req.files).length === 0) {
         return res.status(400).json({
